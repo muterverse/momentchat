@@ -8,11 +8,9 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // 정적 파일 제공 설정
-app.use(express.static(path.join(__dirname, 'public')));
-
-// 기본 경로로 index.html 제공
+app.use(express.static(__dirname));
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 let activeMessages = []; // 현재 화면에 떠 있는 말풍선 데이터
