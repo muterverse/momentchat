@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Balloons</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            position: relative;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        input {
+            width: 300px;
+            font-size: 16px;
+            border: none;
+            border-bottom: 2px solid #555; /* 밑줄 스타일 */
+            outline: none;
+            background: transparent;
+            color: #fff;
+            padding: 5px 0;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            border-bottom: 2px solid #888; /* 포커스 시 밑줄 색 변경 */
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #555;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #888;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            background-color: #444;
+            transform: scale(0.95);
+        }
+
+        .message {
+            position: absolute;
+            font-size: 18px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            opacity: 1;
+            transform: scale(1);
+            animation: float 3s ease-in-out infinite;
+            transition: opacity 1s ease;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                transform: translateY(-10px) scale(1.05);
+            }
+            100% {
+                transform: translateY(0) scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="input-container">
+        <input type="text" id="messageInput" placeholder="윗유에게 보내주세요">
+        <button id="sendButton">🫶</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const input = document.getElementById('messageInput');
+        const button = document.getElementById('sendButton');
+
+        let isComposing = false; // 한글 조합 중인지 여부
+
+        // 메시지 전송 함수
+        function sendMessage() {
+            if (input.value.trim() !== '') {
+                const message = {
+                    text: input.value,
+                    position: {
+                        x: Math.random() * 80 + 10,
+                        y: Math.random() * 80 + 10,
+                    },
+                    timestamp: Date.now(),
+                };
+
+                socket.emit('new_message', message);
+                input.value = ''; // 입력 필드 비우기
+            }
+        }
+
+        // 버튼 클릭 이벤트
+        button.addEventListener('click', () => {
+            sendMessage();
+        });
+
+        // 한글 조합 시작
+        input.addEventListener('compositionstart', () => {
+            isComposing = true;
+        });
+
+        // 한글 조합 종료
+        input.addEventListener('compositionend', () => {
+            isComposing = false;
+        });
+
+        // Enter 키 이벤트
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !isComposing) {
+                event.preventDefault(); // 기본 동작 방지
+                sendMessage();
+            }
+        });
+
+        // 서버로부터 기존 메시지 초기화
+        socket.on('initialize_messages', (messages) => {
+            messages.forEach((data) => {
+                const elapsedTime = Date.now() - data.timestamp;
+                const remainingTime = Math.max(0, 6000 - elapsedTime);
+
+                renderMessage(data, remainingTime);
+            });
+        });
+
+        // 서버로부터 새 메시지 수신
+        socket.on('display_message', (data) => {
+            renderMessage(data, 6000);
+        });
+
+        // 메시지 렌더링
+        function renderMessage(data, remainingTime) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.textContent = data.text;
+            messageElement.style.left = `${data.position.x}%`;
+            messageElement.style.top = `${data.position.y}%`;
+            document.body.appendChild(messageElement);
+
+            setTimeout(() => {
+                messageElement.style.opacity = '0'; // 부드럽게 사라짐
+                setTimeout(() => messageElement.remove(), 1000); // DOM에서 제거
+            }, remainingTime);
+        }
+    </script>
+</body>
+</html>
